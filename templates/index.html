@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>PM2.5 Beijing — Peramalan &amp; Proyeksi LSTM</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@500;600&family=Fira+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+:root{
+  --bg:#f0f9ff; --card:#ffffff; --muted-bg:#eef6fb; --tx:#0f172a; --mut:#475569; --bd:#d6e6f0;
+  --primary:#0369a1; --on-primary:#ffffff; --actual:#0369a1; --fc:#b45309; --hist:#64748b;
+  --ok:#15803d; --warn-bg:#fffbeb; --warn-bd:#f59e0b; --warn-tx:#78350f; --info-bg:#eff6ff; --info-bd:#60a5fa; --info-tx:#1e3a8a;
+  --err:#b91c1c; --ring:#0369a1; --r:14px; --shadow:0 1px 2px rgba(15,23,42,.05),0 4px 14px rgba(3,105,161,.06);
+}
+@media (prefers-color-scheme:dark){:root{
+  --bg:#0b1220; --card:#121b2d; --muted-bg:#17233a; --tx:#e6edf7; --mut:#9fb0c6; --bd:#25334d;
+  --primary:#38bdf8; --on-primary:#06222f; --actual:#38bdf8; --fc:#fbbf24; --hist:#94a3b8;
+  --ok:#4ade80; --warn-bg:#2a2108; --warn-bd:#b7791f; --warn-tx:#fde68a; --info-bg:#10243f; --info-bd:#2f6db5; --info-tx:#bfdbfe;
+  --err:#fca5a5; --ring:#38bdf8; --shadow:none;}}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;font-family:"Fira Sans",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;font-size:16px;line-height:1.55;background:var(--bg);color:var(--tx)}
+.skip{position:absolute;left:-999px;top:8px;background:var(--primary);color:var(--on-primary);padding:10px 14px;border-radius:8px;z-index:10}
+.skip:focus{left:8px}
+:focus-visible{outline:3px solid var(--ring);outline-offset:2px;border-radius:6px}
+header,main,footer{max-width:1180px;margin:0 auto;padding-left:20px;padding-right:20px}
+header{padding-top:28px;padding-bottom:8px}
+.brand{display:flex;gap:12px;align-items:center}
+.logo{width:44px;height:44px;border-radius:12px;background:var(--primary);color:var(--on-primary);display:grid;place-items:center;flex:none}
+h1{font-size:clamp(1.35rem,2.6vw,1.8rem);line-height:1.2;margin:0}
+.sub{margin:6px 0 0;color:var(--mut);max-width:70ch}
+nav.jump{display:flex;gap:8px;flex-wrap:wrap;margin-top:16px}
+nav.jump a{min-height:44px;display:inline-flex;align-items:center;padding:0 14px;border:1px solid var(--bd);border-radius:999px;background:var(--card);color:var(--tx);text-decoration:none;font-weight:500;font-size:.92rem;transition:border-color .15s,background-color .15s}
+nav.jump a:hover{border-color:var(--primary);background:var(--muted-bg)}
+main{display:grid;gap:18px;padding-top:14px;padding-bottom:36px}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}
+.stat{background:var(--card);border:1px solid var(--bd);border-radius:var(--r);padding:12px 14px;box-shadow:var(--shadow)}
+.stat b{display:block;font:600 1.35rem/1.3 "Fira Code",ui-monospace,monospace;font-variant-numeric:tabular-nums}
+.stat span{color:var(--mut);font-size:.82rem}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:var(--r);padding:18px;box-shadow:var(--shadow)}
+.card h2{margin:0;font-size:1.12rem;display:flex;align-items:center;gap:8px}
+.card h2 svg{color:var(--primary);flex:none}
+.card .d{margin:4px 0 14px;color:var(--mut);font-size:.92rem;max-width:80ch}
+.row{display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end;margin-bottom:12px}
+.field{display:flex;flex-direction:column;gap:4px;min-width:150px}
+.field label{font-size:.85rem;font-weight:500}
+.field small{color:var(--mut);font-size:.78rem}
+input,select,button{font:inherit;min-height:44px;padding:0 12px;border-radius:10px;border:1px solid var(--bd);background:var(--card);color:var(--tx)}
+input:hover,select:hover{border-color:var(--primary)}
+button{cursor:pointer;font-weight:600;display:inline-flex;align-items:center;gap:8px;justify-content:center;transition:background-color .15s,opacity .15s,border-color .15s}
+button.primary{background:var(--primary);color:var(--on-primary);border-color:var(--primary)}
+button.primary:hover{opacity:.9}
+button.ghost{background:transparent;color:var(--tx)}
+button.ghost:hover{border-color:var(--primary);background:var(--muted-bg)}
+button[disabled]{opacity:.6;cursor:progress}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 12px}
+.chips button{min-height:44px;font-weight:500;font-size:.88rem;border-radius:999px}
+.chart{position:relative;height:320px}
+.chart.sm{height:260px}
+.banner{display:flex;gap:10px;align-items:flex-start;border:1px solid;border-radius:12px;padding:12px 14px;margin:0 0 14px;font-size:.9rem}
+.banner svg{flex:none;margin-top:2px}
+.banner.warn{background:var(--warn-bg);border-color:var(--warn-bd);color:var(--warn-tx)}
+.banner.info{background:var(--info-bg);border-color:var(--info-bd);color:var(--info-tx)}
+.banner strong{display:block}
+.res{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:14px}
+.res>div{border:1px solid var(--bd);border-radius:12px;padding:10px 12px;background:var(--muted-bg)}
+.res b{display:block;font:600 1.2rem/1.4 "Fira Code",ui-monospace,monospace;font-variant-numeric:tabular-nums}
+.res span.k{font-size:.78rem;color:var(--mut)}
+.badge{display:inline-flex;align-items:center;gap:6px;padding:3px 10px;border-radius:999px;border:1.5px solid currentColor;font:600 .82rem "Fira Sans",sans-serif}
+.badge i{width:8px;height:8px;border-radius:50%;background:currentColor}
+.field-error{color:var(--err);font-size:.88rem;margin:0 0 10px;min-height:0}
+.note{font-size:.82rem;color:var(--mut);margin:10px 0 0;max-width:90ch}
+details{margin-top:10px}
+summary{cursor:pointer;min-height:44px;display:flex;align-items:center;font-weight:500;color:var(--primary)}
+.tw{overflow-x:auto;border:1px solid var(--bd);border-radius:10px}
+table{border-collapse:collapse;width:100%;font-size:.86rem}
+th,td{padding:7px 10px;text-align:right;border-bottom:1px solid var(--bd);white-space:nowrap;font-variant-numeric:tabular-nums}
+th:first-child,td:first-child{text-align:left}
+thead th{background:var(--muted-bg);position:sticky;top:0}
+.legend-note{display:flex;gap:16px;flex-wrap:wrap;font-size:.82rem;color:var(--mut);margin:0 0 8px}
+.legend-note span{display:inline-flex;align-items:center;gap:6px}
+.sw{width:22px;height:0;border-top:3px solid var(--actual)}
+.sw.d{border-top:3px dashed var(--fc)}
+footer{padding-bottom:30px;color:var(--mut);font-size:.8rem}
+@media (max-width:560px){.field{min-width:100%}.row>button{width:100%}.chart{height:280px}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;scroll-behavior:auto!important}}
+</style>
+</head>
+<body>
+<a class="skip" href="#main">Lewati ke konten</a>
+<header>
+  <div class="brand">
+    <div class="logo" aria-hidden="true">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.7 7.7a2.5 2.5 0 1 1 1.8 4.3H2"/><path d="M9.6 4.6A2 2 0 1 1 11 8H2"/><path d="M12.6 19.4A2 2 0 1 0 14 16H2"/></svg>
+    </div>
+    <div>
+      <h1>Peramalan &amp; Proyeksi PM2.5 Beijing</h1>
+      <p class="sub">Model LSTM 2 lapis · input 24 jam terakhir (PM2.5 + cuaca) · dilatih pada data per jam 2010–2014.</p>
+    </div>
+  </div>
+  <nav class="jump" aria-label="Navigasi bagian">
+    <a href="#historis">Data historis</a><a href="#uji">Aktual vs prediksi</a><a href="#ramalan">Ramalan 24 jam</a><a href="#tahunan">Proyeksi tahunan</a>
+  </nav>
+</header>
+
+<main id="main">
+  <section class="stats" id="stats" aria-label="Ringkasan kinerja model" aria-live="polite"></section>
+
+  <section class="card" id="historis" aria-labelledby="h-hist">
+    <h2 id="h-hist"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg>1. Data historis</h2>
+    <p class="d">Pergerakan PM2.5 2010–2014: lonjakan polusi, pola musiman, dan pola harian.</p>
+    <div class="row">
+      <div class="field"><label for="hRes">Agregasi</label><select id="hRes"><option value="D" selected>Harian</option><option value="W">Mingguan</option><option value="M">Bulanan</option><option value="H">Per jam</option></select></div>
+      <div class="field"><label for="hStart">Dari</label><input type="date" id="hStart"></div>
+      <div class="field"><label for="hEnd">Sampai</label><input type="date" id="hEnd"></div>
+      <button class="primary" id="hBtn" type="button">Tampilkan</button>
+    </div>
+    <p class="field-error" id="hErr" role="alert"></p>
+    <div class="chart"><canvas id="cHist" role="img" aria-label="Grafik garis PM2.5 historis"></canvas></div>
+  </section>
+
+  <section class="card" id="uji" aria-labelledby="h-test">
+    <h2 id="h-test"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20V10"/><path d="M18 20V4"/><path d="M6 20v-4"/></svg>2. Aktual vs prediksi (data uji 2014)</h2>
+    <p class="d">Prediksi 1 jam ke depan pada periode yang tidak dipakai saat pelatihan.</p>
+    <div class="row">
+      <div class="field"><label for="tStart">Mulai</label><input type="date" id="tStart" min="2014-01-01" max="2014-12-31"></div>
+      <div class="field"><label for="tDays">Durasi</label><select id="tDays"><option value="3">3 hari</option><option value="7" selected>7 hari</option><option value="14">14 hari</option><option value="30">30 hari</option></select></div>
+      <button class="primary" id="tBtn" type="button">Tampilkan</button>
+    </div>
+    <p class="field-error" id="tErr" role="alert"></p>
+    <div class="legend-note"><span><i class="sw"></i>Aktual (garis solid)</span><span><i class="sw d"></i>Prediksi LSTM (garis putus-putus)</span></div>
+    <div class="chart"><canvas id="cTest" role="img" aria-label="Grafik aktual versus prediksi PM2.5 pada data uji"></canvas></div>
+  </section>
+
+  <section class="card" id="ramalan" aria-labelledby="h-fc">
+    <h2 id="h-fc"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>3. Ramalan 24 jam ke depan</h2>
+    <p class="d">Pilih tanggal dan jam mana pun hingga tahun 2100. Hingga 1 Januari 2015 model memakai data nyata; setelah itu memakai pola musiman rata-rata (proyeksi).</p>
+    <div class="chips" role="group" aria-label="Pilihan cepat">
+      <button type="button" class="ghost" data-q="last">Setelah data terakhir (1 Jan 2015)</button>
+      <button type="button" class="ghost" data-q="tomorrow">Besok</button>
+      <button type="button" class="ghost" data-q="2026-01-01T08:00">1 Jan 2026</button>
+      <button type="button" class="ghost" data-q="2030-07-15T08:00">15 Jul 2030</button>
+    </div>
+    <div class="row">
+      <div class="field"><label for="fStart">Mulai ramal dari</label><input type="datetime-local" id="fStart" step="3600" min="2010-01-03T00:00" max="2100-12-31T23:00"><small>Tanggal 2010 – 2100</small></div>
+      <button class="primary" id="fBtn" type="button">Ramalkan</button>
+    </div>
+    <p class="field-error" id="fErr" role="alert"></p>
+    <div id="fBanner"></div>
+    <div class="res" id="fRes" aria-live="polite"></div>
+    <div class="legend-note"><span id="fLegA"><i class="sw"></i>Aktual (jika tersedia)</span><span><i class="sw d"></i>Prediksi LSTM</span></div>
+    <div class="chart"><canvas id="cFc" role="img" aria-label="Grafik ramalan PM2.5 24 jam"></canvas></div>
+    <details><summary>Lihat tabel data ramalan</summary><div class="tw"><table id="fTable"></table></div></details>
+    <p class="note">Variabel cuaca tidak diketahui untuk masa depan sehingga diasumsikan tetap (mode data) atau mengikuti rata-rata musiman (mode proyeksi). Semakin jauh jamnya, semakin besar ketidakpastiannya.</p>
+  </section>
+
+  <section class="card" id="tahunan" aria-labelledby="h-yr">
+    <h2 id="h-yr"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>4. Proyeksi tahunan (2015 dan seterusnya)</h2>
+    <p class="d">Gambaran pola musiman PM2.5 sepanjang satu tahun di masa depan, misalnya 2026, berdasarkan apa yang dipelajari model dari 2010–2014.</p>
+    <div class="banner warn" role="note">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m21.7 18-8-14a2 2 0 0 0-3.4 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.7-3Z"/><path d="M12 9v4M12 17h.01"/></svg>
+      <div><strong>Bukan prakiraan kejadian nyata</strong>Model tidak mengenal tren jangka panjang, kebijakan emisi, atau cuaca tahun tertentu. Tahun berbeda (mis. 2026 dan 2030) menghasilkan pola musiman yang hampir sama. Nilai harian cenderung lebih rendah dan lebih halus daripada data asli karena lonjakan ekstrem tidak dapat diprediksi dari rata-rata musiman.</div>
+    </div>
+    <div class="row">
+      <div class="field"><label for="yYear">Tahun</label><input type="number" id="yYear" min="2015" max="2100" value="2026" inputmode="numeric"><small>Isi 2015 – 2100</small></div>
+      <button class="primary" id="yBtn" type="button">Proyeksikan</button>
+    </div>
+    <p class="field-error" id="yErr" role="alert"></p>
+    <div class="res" id="yRes" aria-live="polite"></div>
+    <div class="chart sm"><canvas id="cYm" role="img" aria-label="Diagram batang proyeksi rata-rata PM2.5 per bulan"></canvas></div>
+    <div class="chart sm" style="margin-top:14px"><canvas id="cYd" role="img" aria-label="Grafik garis proyeksi rata-rata PM2.5 harian"></canvas></div>
+    <details><summary>Lihat tabel proyeksi bulanan</summary><div class="tw"><table id="yTable"></table></div></details>
+  </section>
+</main>
+<footer>Kategori (disederhanakan): Baik ≤ 35 · Sedang ≤ 75 · Tidak sehat ≤ 150 · Sangat tidak sehat &gt; 150 µg/m³. Proyek TA-04 Pembelajaran Mesin.</footer>
+
+<script>
+const $ = id => document.getElementById(id);
+const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const REDUCE = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const nf = (v, d = 1) => (v == null ? '—' : Number(v).toLocaleString('id-ID', { minimumFractionDigits: d, maximumFractionDigits: d }));
+const charts = {}, last = {};
+const ICON = {
+  warn: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m21.7 18-8-14a2 2 0 0 0-3.4 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.7-3Z"/><path d="M12 9v4M12 17h.01"/></svg>',
+  info: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>'
+};
+
+async function api(u) {
+  const r = await fetch(u);
+  let j = {}; try { j = await r.json(); } catch (e) {}
+  if (!r.ok) throw new Error(j.error || 'Terjadi kesalahan pada server.');
+  return j;
+}
+async function busy(btn, errEl, fn) {
+  const t = btn.textContent; btn.disabled = true; btn.textContent = 'Memuat…';
+  if (errEl) errEl.textContent = '';
+  try { await fn(); } catch (e) { if (errEl) errEl.textContent = e.message; }
+  finally { btn.disabled = false; btn.textContent = t; }
+}
+
+/* ---- Chart helper (warna dibaca dari token CSS agar ikut mode terang/gelap) ---- */
+function draw(id, type, labels, sets, ylab, extra = {}) {
+  last[id] = [type, labels, sets, ylab, extra];
+  if (charts[id]) charts[id].destroy();
+  const many = labels.length > 150;
+  charts[id] = new Chart($(id), {
+    type,
+    data: { labels, datasets: sets.map(s => {
+      const c = css(s.color);
+      return type === 'bar'
+        ? { label: s.label, data: s.data, backgroundColor: c, borderRadius: 4 }
+        : { label: s.label, data: s.data, borderColor: c, backgroundColor: c, borderWidth: 2, borderDash: s.dash ? [7, 5] : [],
+            pointRadius: many ? 0 : 3, pointStyle: s.dash ? 'triangle' : 'circle', tension: .15, spanGaps: true };
+    }) },
+    options: { responsive: true, maintainAspectRatio: false, animation: REDUCE ? false : { duration: 300 },
+      interaction: { mode: 'index', intersect: false },
+      plugins: { legend: { labels: { color: css('--tx'), usePointStyle: true } }, tooltip: { callbacks: { label: c => `${c.dataset.label}: ${nf(c.parsed.y)} µg/m³` } } },
+      scales: { x: { ticks: { color: css('--mut'), maxTicksLimit: type === 'bar' ? 12 : 10, maxRotation: 0 }, grid: { color: css('--bd') } },
+                y: { beginAtZero: true, title: { display: true, text: ylab, color: css('--mut') }, ticks: { color: css('--mut') }, grid: { color: css('--bd') } } },
+      ...extra }
+  });
+}
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => Object.keys(last).forEach(id => draw(id, ...last[id])));
+
+function table(el, head, rows) {
+  el.innerHTML = '<thead><tr>' + head.map(h => `<th scope="col">${h}</th>`).join('') + '</tr></thead><tbody>' +
+    rows.map(r => '<tr>' + r.map((c, i) => i === 0 ? `<th scope="row" style="font-weight:500">${c}</th>` : `<td>${c}</td>`).join('') + '</tr>').join('') + '</tbody>';
+}
+const badge = c => `<span class="badge" style="color:${c.color}"><i></i>${c.label}</span>`;
+const pad = n => String(n).padStart(2, '0');
+const localDT = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:00`;
+
+/* ---- Bagian 0: info ---- */
+let INFO = {};
+async function loadInfo() {
+  INFO = await api('/api/info');
+  const m = INFO.metrics['LSTM (uji)'], b = INFO.metrics['Baseline persistensi (uji)'];
+  $('stats').innerHTML = [
+    [Number(INFO.n).toLocaleString('id-ID') + ' jam', 'Jumlah data'], [nf(INFO.mean) + ' µg/m³', 'Rata-rata PM2.5'],
+    [nf(m.RMSE, 2), 'RMSE LSTM (uji)'], [nf(m.MAE, 2), 'MAE LSTM (uji)'], [nf(m.R2, 3), 'R² LSTM (uji)'], [nf(b.RMSE, 2), 'RMSE baseline']
+  ].map(([v, k]) => `<div class="stat"><b>${v}</b><span>${k}</span></div>`).join('');
+  $('hStart').value = INFO.start.slice(0, 10); $('hEnd').value = INFO.end.slice(0, 10);
+  $('hStart').min = $('hEnd').min = INFO.start.slice(0, 10); $('hStart').max = $('hEnd').max = INFO.end.slice(0, 10);
+  $('tStart').value = INFO.split.test_start.slice(0, 10);
+  $('fStart').value = '2026-01-01T08:00';
+}
+
+/* ---- Bagian 1 & 2 ---- */
+async function loadHist() {
+  if ($('hStart').value > $('hEnd').value) throw new Error('Tanggal awal harus lebih awal dari tanggal akhir.');
+  const j = await api(`/api/historical?resample=${$('hRes').value}&start=${$('hStart').value}&end=${$('hEnd').value} 23:00`);
+  draw('cHist', 'line', j.labels, [{ label: 'PM2.5', data: j.values, color: '--actual' }], 'µg/m³');
+}
+async function loadTest() {
+  const j = await api(`/api/test_predictions?start=${$('tStart').value}&days=${$('tDays').value}`);
+  if (!j.labels.length) throw new Error('Tanggal di luar data uji (1 Jan – 31 Des 2014).');
+  draw('cTest', 'line', j.labels, [{ label: 'Aktual', data: j.actual, color: '--actual' }, { label: 'Prediksi LSTM', data: j.predicted, color: '--fc', dash: true }], 'µg/m³');
+}
+
+/* ---- Bagian 3: ramalan 24 jam ---- */
+async function loadFc() {
+  const v = $('fStart').value;
+  if (!v) throw new Error('Pilih tanggal dan jam terlebih dahulu.');
+  const j = await api('/api/forecast?steps=24&start=' + encodeURIComponent(v));
+  const proj = j.mode === 'proyeksi';
+  $('fBanner').innerHTML = proj
+    ? `<div class="banner warn" role="note">${ICON.warn}<div><strong>Mode proyeksi (masa depan)</strong>Data nyata hanya sampai ${INFO.end.slice(0, 10)}. Jendela input dan cuaca dibentuk dari pola rata-rata musiman 2010–2014, jadi hasil ini adalah perkiraan pola, bukan kejadian pada tanggal tersebut.</div></div>`
+    : `<div class="banner info" role="note">${ICON.info}<div><strong>Mode data nyata</strong>Input diambil dari 24 jam data sebelum waktu yang dipilih${j.mae == null ? '.' : '; hasil dibandingkan dengan nilai aktual.'}</div></div>`;
+  $('fRes').innerHTML = `
+    <div><b>${nf(j.next_hour)}</b><span class="k">Prediksi jam pertama (µg/m³)</span></div>
+    <div><b style="font-family:'Fira Sans'">${badge(j.category)}</b><span class="k">Kategori jam pertama</span></div>
+    <div><b>${nf(j.mean_pred)}</b><span class="k">Rata-rata 24 jam</span></div>
+    <div><b>${nf(j.max_pred)}</b><span class="k">Puncak prediksi</span></div>
+    <div><b>${j.mae == null ? '—' : nf(j.mae)}</b><span class="k">MAE vs aktual</span></div>`;
+  const hasA = j.actual.some(x => x !== null);
+  $('fLegA').style.display = hasA ? '' : 'none';
+  const sets = [{ label: 'Prediksi LSTM', data: j.predicted, color: '--fc', dash: true }];
+  if (hasA) sets.unshift({ label: 'Aktual', data: j.actual, color: '--actual' });
+  draw('cFc', 'line', j.labels, sets, 'µg/m³');
+  $('cFc').setAttribute('aria-label', `Grafik ramalan PM2.5 24 jam mulai ${j.labels[0]}; rata-rata ${nf(j.mean_pred)} mikrogram per meter kubik`);
+  table($('fTable'), ['Waktu', 'Prediksi', 'Aktual'], j.labels.map((l, i) => [l, nf(j.predicted[i]), j.actual[i] == null ? '—' : nf(j.actual[i])]));
+}
+document.querySelectorAll('[data-q]').forEach(b => b.addEventListener('click', () => {
+  const q = b.dataset.q;
+  if (q === 'last') $('fStart').value = '2015-01-01T00:00';
+  else if (q === 'tomorrow') { const d = new Date(); d.setDate(d.getDate() + 1); d.setHours(8, 0, 0, 0); $('fStart').value = localDT(d); }
+  else $('fStart').value = q;
+  busy($('fBtn'), $('fErr'), loadFc);
+}));
+
+/* ---- Bagian 4: proyeksi tahunan ---- */
+async function loadYear() {
+  const y = parseInt($('yYear').value, 10);
+  if (!Number.isInteger(y) || y < INFO.first_future_year || y > INFO.max_year) throw new Error(`Masukkan tahun ${INFO.first_future_year}–${INFO.max_year}.`);
+  const j = await api('/api/projection_year?year=' + y);
+  $('yRes').innerHTML = `
+    <div><b>${nf(j.annual_mean)}</b><span class="k">Rata-rata tahunan ${j.year} (µg/m³)</span></div>
+    <div><b style="font-family:'Fira Sans'">${badge(j.category)}</b><span class="k">Kategori rata-rata tahunan</span></div>
+    <div><b>${j.month_names[j.peak_month - 1]}</b><span class="k">Bulan tertinggi (${nf(j.peak_value)})</span></div>
+    <div><b>${j.month_names[j.low_month - 1]}</b><span class="k">Bulan terendah (${nf(j.low_value)})</span></div>
+    <div><b>${j.days_over_75} / ${j.n_days}</b><span class="k">Hari dengan rata-rata &gt; 75</span></div>`;
+  draw('cYm', 'bar', j.month_names, [{ label: `Proyeksi ${j.year}`, data: j.monthly, color: '--actual' }, { label: 'Rata-rata historis 2010–2014', data: j.monthly_hist, color: '--hist' }], 'µg/m³');
+  draw('cYd', 'line', j.labels, [{ label: `Proyeksi harian ${j.year}`, data: j.daily, color: '--actual' }], 'µg/m³');
+  $('cYm').setAttribute('aria-label', `Diagram batang proyeksi PM2.5 per bulan tahun ${j.year}; tertinggi ${j.month_names[j.peak_month - 1]}, terendah ${j.month_names[j.low_month - 1]}`);
+  table($('yTable'), ['Bulan', `Proyeksi ${j.year}`, 'Historis 2010–2014'], j.month_names.map((m, i) => [m, nf(j.monthly[i]), nf(j.monthly_hist[i])]));
+}
+
+$('hBtn').onclick = () => busy($('hBtn'), $('hErr'), loadHist);
+$('tBtn').onclick = () => busy($('tBtn'), $('tErr'), loadTest);
+$('fBtn').onclick = () => busy($('fBtn'), $('fErr'), loadFc);
+$('yBtn').onclick = () => busy($('yBtn'), $('yErr'), loadYear);
+$('yYear').addEventListener('keydown', e => { if (e.key === 'Enter') $('yBtn').click(); });
+$('fStart').addEventListener('keydown', e => { if (e.key === 'Enter') $('fBtn').click(); });
+
+loadInfo().then(() => Promise.all([loadHist(), loadTest(), loadFc()])).catch(e => { $('fErr').textContent = e.message; });
+</script>
+</body>
+</html>

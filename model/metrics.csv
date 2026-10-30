@@ -1,0 +1,4 @@
+,RMSE,MAE,R2
+LSTM (uji),20.725,11.841,0.951
+Baseline persistensi (uji),21.913,11.824,0.945
+LSTM (validasi),18.401,11.159,0.947

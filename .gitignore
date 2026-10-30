@@ -1,0 +1,23 @@
+# Lingkungan virtual — jangan masuk GitHub
+.venv/
+venv/
+env/
+ENV/
+
+# Python
+__pycache__/
+*.py[cod]
+.ipynb_checkpoints/
+
+# Rahasia & konfigurasi lokal
+.env
+.env.*
+
+# Vercel
+.vercel/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

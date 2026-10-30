@@ -1,0 +1,39 @@
+{
+  "timesteps": 24,
+  "features": [
+    "pm2.5",
+    "DEWP",
+    "TEMP",
+    "PRES",
+    "Iws",
+    "Is",
+    "Ir",
+    "cbwd_NE",
+    "cbwd_NW",
+    "cbwd_SE",
+    "cbwd_cv"
+  ],
+  "target": "pm2.5",
+  "split": {
+    "train_end": "2013-07-02 10:00:00",
+    "val_end": "2013-12-31 23:00:00",
+    "test_start": "2014-01-01 00:00:00"
+  },
+  "metrics": {
+    "LSTM (uji)": {
+      "RMSE": 20.725,
+      "MAE": 11.841,
+      "R2": 0.951
+    },
+    "Baseline persistensi (uji)": {
+      "RMSE": 21.913,
+      "MAE": 11.824,
+      "R2": 0.945
+    },
+    "LSTM (validasi)": {
+      "RMSE": 18.401,
+      "MAE": 11.159,
+      "R2": 0.947
+    }
+  }
+}
